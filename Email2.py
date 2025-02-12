@@ -1,109 +1,60 @@
-import dns.resolver
 import re
-import tldextract
-import whois
-from email import message_from_string
-from email.header import decode_header
 
-PHISHING_KEYWORDS = ["urgent", "password", "click here", "update account", "verify", "lottery", "bank", "invoice"]
-
-def check_spf(domain):
-    try:
-        answers = dns.resolver.resolve(f'_spf.{domain}', 'TXT')
-        for txt_record in answers:
-            if 'v=spf1' in txt_record.to_text():
-                return True
-    except Exception:
-        return False
-    return False
-
-def check_dkim(domain):
-    try:
-        dkim_selector = "default"
-        dkim_domain = f"{dkim_selector}._domainkey.{domain}"
-        answers = dns.resolver.resolve(dkim_domain, 'TXT')
-        for txt_record in answers:
-            if 'v=DKIM1' in txt_record.to_text():
-                return True
-    except Exception:
-        return False
-    return False
-
-def check_dmarc(domain):
-    try:
-        dmarc_domain = f"_dmarc.{domain}"
-        answers = dns.resolver.resolve(dmarc_domain, 'TXT')
-        for txt_record in answers:
-            if 'v=DMARC1' in txt_record.to_text():
-                return True
-    except Exception:
-        return False
-    return False
-
-def check_domain_legitimacy(domain):
-    try:
-        domain_info = whois.whois(domain)
-        if domain_info.creation_date:
-            return True
-    except Exception:
-        return False
-    return False
-
-def extract_domain(email_address):
-    return email_address.split('@')[-1]
-
-def check_phishing_keywords(email_body):
-    for keyword in PHISHING_KEYWORDS:
-        if keyword.lower() in email_body.lower():
-            return True
-    return False
-
-def analyze_email(email_content):
-    email_msg = message_from_string(email_content)
+def is_phishing_email(email_content):
+    # Common phishing indicators
+    suspicious_keywords = [
+        "urgent", "verify", "account", "password", "login", "bank", "paypal",
+        "security", "update", "suspended", "limited", "immediately"
+    ]
     
-    sender = email_msg.get("From")
-    if sender:
-        sender_email = re.findall(r'<([^<>]+)>', sender)
-        sender_email = sender_email[0] if sender_email else sender
-    else:
-        sender_email = "Unknown"
+    suspicious_domains = [
+        "freegiftcards.com", "claimprize.net", "secureupdate.org"
+    ]
+    
+    # Check for suspicious keywords
+    for keyword in suspicious_keywords:
+        if re.search(fr'\b{keyword}\b', email_content, re.IGNORECASE):
+            print(f"Suspicious keyword found: {keyword}")
+            return True
+    
+    # Check for suspicious links
+    links = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', email_content)
+    for link in links:
+        for domain in suspicious_domains:
+            if domain in link:
+                print(f"Suspicious link found: {link}")
+                return True
+    
+    # Check for mismatched sender and links
+    sender_match = re.search(r'From:.*<.*@(.*)>', email_content)
+    if sender_match:
+        sender_domain = sender_match.group(1)
+        for link in links:
+            if sender_domain not in link:
+                print(f"Mismatch between sender domain and link domain: {sender_domain} vs {link}")
+                return True
+    
+    # If no suspicious indicators found
+    print("No phishing indicators detected.")
+    return False
 
-    domain = extract_domain(sender_email)
+# Example email content
+email_content = """
+From: support@yourbank.com
+Subject: Urgent: Verify Your Account
 
-    spf_valid = check_spf(domain)
-    dkim_valid = check_dkim(domain)
-    dmarc_valid = check_dmarc(domain)
-    domain_legit = check_domain_legitimacy(domain)
+Dear Customer,
 
-    email_body = ""
-    if email_msg.is_multipart():
-        for part in email_msg.walk():
-            if part.get_content_type() == "text/plain":
-                email_body += part.get_payload(decode=True).decode(errors="ignore")
-    else:
-        email_body = email_msg.get_payload(decode=True).decode(errors="ignore")
+We have detected unusual activity on your account. Please verify your login details immediately by clicking the link below:
 
-    phishing_detected = check_phishing_keywords(email_body)
+http://secureupdate.org/login
 
-    print(f"Sender Email: {sender_email}")
-    print(f"SPF Valid: {spf_valid}")
-    print(f"DKIM Valid: {dkim_valid}")
-    print(f"DMARC Valid: {dmarc_valid}")
-    print(f"Domain Legitimacy: {domain_legit}")
-    print(f"Phishing Keywords Detected: {phishing_detected}")
+Thank you,
+Your Bank Team
+"""
 
-    if not spf_valid or not dkim_valid or not dmarc_valid or not domain_legit or phishing_detected:
-        print("\n⚠️ WARNING: This email may be FAKE or PHISHING!")
-    else:
-        print("\n✅ This email seems legitimate.")
-
-def read_email_from_file(file_path):
-    """Read email content from a text file"""
-    with open(file_path, "r", encoding="utf-8") as file:
-        return file.read()
-
-# Example usage:
-if __name__ == "__main__":
-    file_path = "email_sample.txt"  # Change this to the actual file path
-    email_content = read_email_from_file(file_path)
-    analyze_email(email_content)
+# Check if the email is phishing
+if is_phishing_email(email_content):
+    print("This email is likely a phishing attempt.")
+else:
+    print("This email seems safe.")
