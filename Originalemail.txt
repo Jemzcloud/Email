@@ -1,12 +1,15 @@
-From: "PayPal Support" <service@paypal.com>
-Subject: Important Update Regarding Your Account
+From: support@paypal.com
+Subject: Your PayPal Account Statement
 
-Dear [Your Name],
+Dear Customer,
 
-We recently updated our terms of service. Please visit our website to review the changes:  
-🔗 https://www.paypal.com
+Your monthly account statement is now available. To view your statement, please log in to your PayPal account securely at:
 
-If you have any questions, feel free to contact us at support@paypal.com.
+https://www.paypal.com/myaccount/statement
 
-Best regards,  
-PayPal Support Team
+If you have any questions, feel free to contact our support team at support@paypal.com.
+
+Thank you for using PayPal.
+
+Sincerely,
+PayPal Team
