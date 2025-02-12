@@ -1,1 +1,12 @@
-help@acct.epicgames.com
+From: "PayPal Support" <service@paypal.com>
+Subject: Important Update Regarding Your Account
+
+Dear [Your Name],
+
+We recently updated our terms of service. Please visit our website to review the changes:  
+🔗 https://www.paypal.com
+
+If you have any questions, feel free to contact us at support@paypal.com.
+
+Best regards,  
+PayPal Support Team
