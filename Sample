@@ -1,0 +1,191 @@
+Sure! Below is a simple PHP backend for handling likes in a gallery. It uses a MySQL database to store likes and ensures that a user cannot like the same image multiple times.
+
+
+---
+
+Database Structure (gallery.sql)
+
+CREATE TABLE images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    image_url VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE likes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    image_id INT NOT NULL,
+    user_ip VARCHAR(50) NOT NULL,
+    UNIQUE(image_id, user_ip), 
+    FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+);
+
+
+---
+
+Backend: config.php
+
+<?php
+$host = "localhost";
+$dbname = "gallery";
+$username = "root";
+$password = "";
+
+try {
+    $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
+}
+?>
+
+
+---
+
+Backend: get_images.php
+
+Fetch images and their like counts.
+
+<?php
+include "config.php";
+
+$query = "SELECT images.id, images.image_url, COUNT(likes.id) AS like_count 
+          FROM images 
+          LEFT JOIN likes ON images.id = likes.image_id 
+          GROUP BY images.id";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$images = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+header('Content-Type: application/json');
+echo json_encode($images);
+?>
+
+
+---
+
+Backend: like.php
+
+Handles like requests and prevents multiple likes from the same user.
+
+<?php
+include "config.php";
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $image_id = $_POST['image_id'];
+    $user_ip = $_SERVER['REMOTE_ADDR'];  // Use IP as a basic user identifier
+
+    // Check if the user has already liked this image
+    $stmt = $conn->prepare("SELECT id FROM likes WHERE image_id = ? AND user_ip = ?");
+    $stmt->execute([$image_id, $user_ip]);
+    
+    if ($stmt->rowCount() > 0) {
+        echo json_encode(["status" => "already_liked"]);
+    } else {
+        // Insert like
+        $stmt = $conn->prepare("INSERT INTO likes (image_id, user_ip) VALUES (?, ?)");
+        if ($stmt->execute([$image_id, $user_ip])) {
+            echo json_encode(["status" => "liked"]);
+        } else {
+            echo json_encode(["status" => "error"]);
+        }
+    }
+}
+?>
+
+
+---
+
+Frontend: index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery</title>
+    <style>
+        .gallery { display: flex; flex-wrap: wrap; }
+        .image-card { margin: 10px; text-align: center; }
+        img { width: 200px; height: auto; display: block; }
+        button { margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Simple Gallery</h2>
+    <div class="gallery" id="gallery"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch("get_images.php")
+                .then(response => response.json())
+                .then(data => {
+                    let gallery = document.getElementById("gallery");
+                    data.forEach(image => {
+                        let div = document.createElement("div");
+                        div.className = "image-card";
+                        div.innerHTML = `
+                            <img src="${image.image_url}" alt="Image">
+                            <p>Likes: <span id="like-count-${image.id}">${image.like_count}</span></p>
+                            <button onclick="likeImage(${image.id})" id="like-btn-${image.id}">Like</button>
+                        `;
+                        gallery.appendChild(div);
+                    });
+                });
+        });
+
+        function likeImage(imageId) {
+            fetch("like.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `image_id=${imageId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "liked") {
+                    let count = document.getElementById(`like-count-${imageId}`);
+                    count.textContent = parseInt(count.textContent) + 1;
+                    document.getElementById(`like-btn-${imageId}`).disabled = true;
+                } else if (data.status === "already_liked") {
+                    alert("You have already liked this image!");
+                    document.getElementById(`like-btn-${imageId}`).disabled = true;
+                } else {
+                    alert("Something went wrong!");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+---
+
+How It Works:
+
+1. Displays images from the database.
+
+
+2. User clicks "Like", sending a request to like.php.
+
+
+3. Backend checks if the user (by IP) has already liked it.
+
+If not liked, it registers the like and updates the count.
+
+If already liked, it prevents another like.
+
+
+
+4. Frontend updates the UI dynamically.
+
+
+
+
+---
+
+Improvements You Can Add:
+
+✅ Use sessions or user accounts instead of IPs for better tracking.
+✅ Store likes in LocalStorage to prevent unnecessary server requests.
+✅ Add an admin panel to upload/manage images.
+
+Would you like a version with a login system for better user tracking?
